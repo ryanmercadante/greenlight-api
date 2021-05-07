@@ -1,3 +1,6 @@
+RUN:
+	go run ./cmd/api
+
 CREATE_MOVIES_TABLE_MIGRATION:
 	migrate create -seq -ext=.sql -dir=./migrations create_movies_table
 
