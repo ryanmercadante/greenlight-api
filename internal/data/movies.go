@@ -49,7 +49,7 @@ type MovieModel struct {
 	DB *sql.DB
 }
 
-// Add a placeholder method for inserting a new record in the movies table.
+// Insert method for inserting a new record in the movies table.
 func (m MovieModel) Insert(movie *Movie) error {
 	// Define the SQL query for inserting a new record in the movies table and returning
 	// the system-generated data.
@@ -74,7 +74,7 @@ func (m MovieModel) Insert(movie *Movie) error {
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
-// Add a placeholder method for fetching a specific record from the movies table.
+// Get method for fetching a specific record from the movies table.
 func (m MovieModel) Get(id int64) (*Movie, error) {
 	// The PostgreSQL bigserial type that we're using for the movie ID starts
 	// auto-incrementing at 1 by default, so we know that no movies will have ID values
@@ -131,7 +131,7 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 	return &movie, nil
 }
 
-// Add a placeholder method for updating a specific record from the movies table.
+// Update method for updating a specific record from the movies table.
 func (m MovieModel) Update(movie *Movie) error {
 	// Declare the SQL query for updating the record and returning the new version number.
 	query := `
@@ -171,7 +171,7 @@ func (m MovieModel) Update(movie *Movie) error {
 	return nil
 }
 
-// Add a placeholder method for deleting a specific record from the movies table.
+// Delete method for deleting a specific record from the movies table.
 func (m MovieModel) Delete(id int64) error {
 	// Return an ErrRecordNotFound error if the movie ID is less than 1.
 	if id < 1 {
@@ -211,4 +211,65 @@ func (m MovieModel) Delete(id int64) error {
 	}
 
 	return nil
+}
+
+// GetAll() method which returns a slice of movies.
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+	// Construct the SQL query to retrieve all movie records.
+	query := `
+		SELECT id, created_at, title, year, runtime, genres, version
+		FROM movies
+		ORDER BY id
+	`
+
+	// Create a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Use QueryContext() to execute the query. This returns a sql.Rows resultset
+	// containing the result.
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	// Importantly, defer a call to rows.Close() to ensure that the resultset is closed
+	// before GetAll() returns.
+	defer rows.Close()
+
+	// Initialize an empty slice to hold the movie data.
+	movies := []*Movie{}
+
+	// Use rows.Next to iterate through the rows in the resultset.
+	for rows.Next() {
+		// Initialize an empty Movie struct to hold the data for an individual model.
+		var movie Movie
+
+		// Scan the values from the row into the Movie struct. Again, note that we're
+		// using the pq.Array() adapter on the genres field here.
+		err := rows.Scan(
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			pq.Array(&movie.Genres),
+			&movie.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add the Movie struct to the slice.
+		movies = append(movies, &movie)
+	}
+
+	// When the rows.Next() loop has finished, call rows.Err() to retrieve any error
+	// that was encountered during the iteration.
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// If everything went OK, then return the slice of movies.
+	return movies, nil
 }
