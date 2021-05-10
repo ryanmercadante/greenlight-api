@@ -12,3 +12,6 @@ EXECUTE_UP_MIGRATIONS:
 
 EXECUTE_DOWN_MIGRATIONS:
 	migrate -path=./migrations -database=$$GREENLIGHT_DB_DSN down
+
+ADD_MOVIES_INDEXES_MIGRATIONS:
+	migrate create -seq -ext .sql -dir=./migrations add_movies_indexes
